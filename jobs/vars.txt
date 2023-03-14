@@ -1,0 +1,6 @@
+TdPid=''
+UserName='',
+UserPassWord='',
+TargetDatabase='',
+TargetTable='STG_IRIS_EV',
+LogonMech='TD2',

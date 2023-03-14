@@ -1,0 +1,89 @@
+DEFINE JOB IMPORT_TO_TERADATA
+Description 'Import data to Teradata from Kafka Server'
+(
+    
+    DEFINE SCHEMA MSG_SCHEMA
+    (
+      float_input_0 VARCHAR(50), 
+      float_input_1 VARCHAR(50),
+      float_input_2 VARCHAR(50),
+      float_input_3 VARCHAR(50)
+    );
+    
+    DEFINE SCHEMA TD_SCHEMA
+    (
+      float_input_0 VARCHAR(50), 
+      float_input_1 VARCHAR(50),
+      float_input_2 VARCHAR(50),
+      float_input_3 VARCHAR(50),
+      ACQ_DTTM TIMESTAMP(0)
+    );
+    
+    
+    DEFINE OPERATOR IMPORT_TO_TERADATA_STREAM
+    TYPE STREAM
+    SCHEMA TD_SCHEMA
+    ATTRIBUTES
+    (
+      VARCHAR TdPid=@TdPid,
+      VARCHAR UserName=@UserName,
+      VARCHAR UserPassWord=@UserPassWord,
+      VARCHAR TargetDatabase=@TargetDatabase,
+      VARCHAR TargetTable=@TargetTable,
+      VARCHAR LogonMech=@LogonMech,
+      VARCHAR UnicodePassThrough='On',
+      INTEGER MaxSessions=1,
+      VARCHAR PackMaximum='Yes',
+      VARCHAR Robust='N'
+    );
+    
+
+    DEFINE OPERATOR STG_IRIS_EV_SCHEMA_Detail
+    TYPE DATACONNECTOR PRODUCER
+    SCHEMA MSG_SCHEMA
+    ATTRIBUTES
+    (
+        VARCHAR TextDelimiter = ',',
+        VARCHAR QuotedData = 'No',
+        VARCHAR Format = 'Delimited',
+        VARCHAR NullColumns = 'Yes',
+        VARCHAR TrimColumns = 'Both',
+        VARCHAR TruncateColumns = 'No',
+        VARCHAR AccessModuleName = 'libkafkaaxsmod.so',
+        AcceptExcessColumns = 'Yes',
+        AcceptMissingColumns = 'Yes',
+        RecordErrorVerbosity = 'High',
+        RecordErrorfileName = '/tmp/err',
+        VARCHAR AccessModuleInitStr =  '-ADD_LINE_FEED N
+                                        -MODE C
+                                        -TOPIC iris_topic
+                                        -BROKERS kafka:9092 
+                                        -PARTITION 0 
+                    					-BATCHMODE N
+                                        -CONFIG compression.codec=none
+                                        -CONFIG group.id=example_topic
+                                        -MSGLIMIT 4800
+                                        -RWAIT -1
+                                        '
+    );
+    
+    APPLY
+    (
+       'INSERT INTO david_demo.STG_IRIS_EV(
+			float_input_0, 
+      		float_input_1,
+      		float_input_2,
+      		float_input_3,
+			ACQ_DTTM
+			
+	   ) VALUES (
+			:float_input_0, 
+      		:float_input_1,
+      		:float_input_2,
+      		:float_input_3,
+			CURRENT_TIMESTAMP(0)
+		);'
+    )
+    TO OPERATOR(IMPORT_TO_TERADATA_STREAM [1])
+    SELECT * FROM OPERATOR (STG_IRIS_EV_SCHEMA_Detail [1]);
+);
